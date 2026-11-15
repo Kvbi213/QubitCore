@@ -1,0 +1,39 @@
+# Rust / Cargo
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / Web / pnpm
+node_modules/
+dist/
+.svelte-kit/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & Credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# Databases & Runtime State
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+
+# Sandboxes & Cache
+sandboxes/**/cache/
+sandboxes/**/workspace/
+sandboxes/**/tmp/
+
+# OS Specific
+.DS_Store
+Thumbs.db
