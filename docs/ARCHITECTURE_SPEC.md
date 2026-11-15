@@ -48,7 +48,7 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # Runtime asynchroniczny i wielozadaniowość
-tokio = { version = "1.43", features = ["full"] }
+tokio = { version = "1.54", features = ["full"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 futures = "0.3"
 
@@ -65,7 +65,7 @@ schemars = { version = "0.8", features = ["derive"] }
 specta = { version = "=2.0.0-rc.20", features = ["derive"] }
 
 # Baza danych, wektory i grafy
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.42", features = ["bundled"] }
 tokio-rusqlite = "0.6"
 refinery = { version = "0.8", features = ["rusqlite"] }
 petgraph = "0.6"
@@ -80,7 +80,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 thiserror = "2.0"
 anyhow = "1.0"
-uuid = { version = "1.11", features = ["v4", "serde"] }
+uuid = { version = "1.16", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 [profile.release]

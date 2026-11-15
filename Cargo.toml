@@ -26,11 +26,11 @@ qubit-agents = { path = "crates/qubit-agents" }
 qubit-core = { path = "crates/qubit-core" }
 
 # Async & Networking
-tokio = { version = "1.37", features = ["full"] }
+tokio = { version = "1.54", features = ["full"] }
 tokio-stream = "0.1"
-axum = { version = "0.7", features = ["ws"] }
-tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+axum = { version = "0.8", features = ["ws", "macros"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 
 # Serialization & Protocols
 serde = { version = "1.0", features = ["derive"] }
@@ -38,15 +38,15 @@ serde_json = "1.0"
 ts-rs = "9.0"
 
 # Storage
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.42", features = ["bundled"] }
 
 # CLI & Utilities
 clap = { version = "4.5", features = ["derive", "env"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
-thiserror = "1.0"
-uuid = { version = "1.8", features = ["v4", "serde"] }
+thiserror = "2.0"
+uuid = { version = "1.16", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 [profile.release]

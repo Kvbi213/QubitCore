@@ -170,8 +170,8 @@ Szczegółowy opis poszczególnych sprintów i kryteriów akceptacji znajduje si
 ## 🚀 Rozpoczęcie Pracy
 
 ### Wymagania Wstępne
-- **Rust**: 1.75+ (zalecany `rustup toolchain install stable`)
-- **Node.js / pnpm**: Node 20+, pnpm 8+ (dla `apps/qubit-dash`)
+- **Rust**: `stable` (zgodnie z `rust-toolchain.toml`, Rust 2021 edition)
+- **Node.js / pnpm**: Node 20+, pnpm 9+ (dla `apps/qubit-dash` opartego na Tauri v2 i Svelte 5)
 - **Docker**: Wymagany jedynie do uruchamiania piaskownic (`sandboxes/re-ghidra`)
 
 ### Budowanie Monorepo
