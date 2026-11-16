@@ -17,6 +17,8 @@ pub enum AgentError {
     Storage(#[from] qubit_storage::StorageError),
     #[error("Context overflow: {0} tokens exceeds limit {1}")]
     ContextOverflow(usize, usize),
+    #[error("Agent not found: {0}")]
+    NotFound(String),
 }
 
 pub type Result<T> = std::result::Result<T, AgentError>;
@@ -41,6 +43,14 @@ impl AgentEngine {
         }
     }
 
+    pub fn storage(&self) -> &Storage {
+        &self.storage
+    }
+
+    pub fn mcp_registry(&self) -> &McpRegistry {
+        &self.mcp_registry
+    }
+
     /// Process an incoming message with selected execution mode
     pub async fn process(
         &self,
@@ -49,7 +59,8 @@ impl AgentEngine {
     ) -> Result<ChatMessage> {
         let msg_id = Uuid::new_v4();
         self.storage
-            .insert_message(&msg_id.to_string(), "user", &user_message)?;
+            .insert_message(&msg_id.to_string(), "user", &user_message)
+            .await?;
 
         let response_text = match mode {
             ExecutionMode::Reflex => {
@@ -68,7 +79,97 @@ impl AgentEngine {
 
         let reply_id = Uuid::new_v4();
         self.storage
-            .insert_message(&reply_id.to_string(), "assistant", &response_text)?;
+            .insert_message(&reply_id.to_string(), "assistant", &response_text)
+            .await?;
+
+        Ok(ChatMessage {
+            id: reply_id,
+            role: MessageRole::Assistant,
+            content: response_text,
+            created_at: chrono::Utc::now(),
+            tool_calls: None,
+        })
+    }
+
+    /// Execute a task explicitly targeted at a registered agent
+    pub async fn execute_agent_task(
+        &self,
+        agent_id: Uuid,
+        mode: ExecutionMode,
+        task: String,
+    ) -> Result<ChatMessage> {
+        let agent_id_str = agent_id.to_string();
+        let agent = self
+            .storage
+            .get_agent(&agent_id_str)?
+            .ok_or_else(|| AgentError::NotFound(agent_id_str.clone()))?;
+
+        // 1. Update status to Executing
+        self.storage
+            .update_agent_status(&agent_id_str, "executing")
+            .await?;
+
+        // 2. Record incoming task message
+        let task_msg_id = Uuid::new_v4();
+        self.storage
+            .insert_message_full(
+                &task_msg_id.to_string(),
+                Some(&agent_id_str),
+                "user",
+                &task,
+                None,
+            )
+            .await?;
+
+        // 3. Execution logic based on mode and agent role
+        let response_text = match mode {
+            ExecutionMode::Reflex => {
+                format!(
+                    "Agent '{}' [{}] executed reflex task: {}",
+                    agent.name, agent.role, task
+                )
+            }
+            ExecutionMode::Deep => {
+                let tools = self.mcp_registry.list_tools().await;
+                format!(
+                    "Agent '{}' [{}] executed deep reasoning with {} tools: {}",
+                    agent.name,
+                    agent.role,
+                    tools.len(),
+                    task
+                )
+            }
+        };
+
+        // 4. Record checkpoint
+        let checkpoint_json = serde_json::json!({
+            "task": task,
+            "status": "completed",
+            "mode": mode,
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })
+        .to_string();
+
+        self.storage
+            .save_checkpoint(&agent_id_str, 1, &checkpoint_json)
+            .await?;
+
+        // 5. Record outgoing reply message
+        let reply_id = Uuid::new_v4();
+        self.storage
+            .insert_message_full(
+                &reply_id.to_string(),
+                Some(&agent_id_str),
+                "assistant",
+                &response_text,
+                None,
+            )
+            .await?;
+
+        // 6. Return agent status to Idle
+        self.storage
+            .update_agent_status(&agent_id_str, "idle")
+            .await?;
 
         Ok(ChatMessage {
             id: reply_id,

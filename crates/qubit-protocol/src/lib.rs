@@ -96,3 +96,43 @@ pub enum WebSocketEvent {
         message: String,
     },
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "protocol/")]
+pub struct CreateAgentRequest {
+    pub name: String,
+    pub role: String,
+    pub mode: Option<ExecutionMode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "protocol/")]
+pub struct ExecuteTaskRequest {
+    pub task: String,
+    #[serde(default)]
+    pub mode: Option<ExecutionMode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "protocol/")]
+pub struct ExecuteTaskResponse {
+    pub agent_id: Uuid,
+    pub message: ChatMessage,
+    pub status: AgentStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "protocol/")]
+pub struct CallToolRequest {
+    pub arguments: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "protocol/")]
+pub struct HealthResponse {
+    pub status: String,
+    pub version: String,
+    pub engine: String,
+    pub memory_budget_mb: u32,
+    pub uptime_secs: u64,
+}

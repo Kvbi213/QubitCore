@@ -24,6 +24,7 @@ tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 uuid = { workspace = true }
+chrono = { workspace = true }
 
 [[bin]]
 name = "qubit-core"

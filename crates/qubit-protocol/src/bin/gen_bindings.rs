@@ -13,5 +13,10 @@ fn main() {
     let _ = AgentStatus::decl();
     let _ = AgentDescriptor::decl();
     let _ = WebSocketEvent::decl();
+    let _ = CreateAgentRequest::decl();
+    let _ = ExecuteTaskRequest::decl();
+    let _ = ExecuteTaskResponse::decl();
+    let _ = CallToolRequest::decl();
+    let _ = HealthResponse::decl();
     println!("TypeScript types successfully declared.");
 }
