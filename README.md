@@ -118,7 +118,8 @@ Projekt zoptymalizowany pod kątem rygorystycznych ograniczeń pamięciowych na 
 │   ├── qubit-sandbox/            # Zarządca izolacji procesowej i kontenerowej
 │   ├── qubit-agents/             # Wzorce Hermes Agent, Reflex/Deep dispatching
 │   ├── qubit-core/               # Główny demon systemu (Axum HTTP/WS Hub)
-│   └── qubit-cli/                # Narzędzie linii poleceń (`qubit status`, `qubit agents`)
+│   ├── qubit-cli/                # Narzędzie linii poleceń (`qubit status`, `qubit agents`)
+│   └── qubit-installer/          # Autonomiczny instalator/bootstrapper Windows/Linux (`qubit-setup.exe`)
 │
 ├── apps/                         # Aplikacje klienckie i interfejsy
 │   └── qubit-dash/               # SvelteKit + TailwindCSS Mission Control (Web / Tauri)

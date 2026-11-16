@@ -8,6 +8,7 @@ members = [
     "crates/qubit-agents",
     "crates/qubit-core",
     "crates/qubit-cli",
+    "crates/qubit-installer",
 ]
 
 [workspace.package]
