@@ -1,0 +1,35 @@
+[package]
+name = "qubit-dash"
+version = "0.1.0"
+description = "QubitDash Mission Control Client for QubitCore"
+authors = ["Kvbi213 <lisjakub2106@gmail.com>"]
+edition = "2021"
+
+[lib]
+name = "qubit_dash_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+qubit-protocol = { path = "../../../crates/qubit-protocol" }
+qubit-storage = { path = "../../../crates/qubit-storage" }
+tauri = { version = "2.2", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2.2"
+tauri-plugin-shell = "2.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.40", features = ["sync", "time", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.16", features = ["v4", "serde"] }
+raw-window-handle = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

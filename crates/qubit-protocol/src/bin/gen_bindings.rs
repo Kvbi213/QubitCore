@@ -18,5 +18,11 @@ fn main() {
     let _ = ExecuteTaskResponse::decl();
     let _ = CallToolRequest::decl();
     let _ = HealthResponse::decl();
+    let _ = SystemTelemetryDto::decl();
+    let _ = ProviderStatusDto::decl();
+    let _ = RoutingConfigDto::decl();
+    let _ = RoutineDto::decl();
+    let _ = McpAclRuleDto::decl();
+    let _ = WalCheckpointResultDto::decl();
     println!("TypeScript types successfully declared.");
 }

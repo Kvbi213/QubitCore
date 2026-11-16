@@ -104,6 +104,15 @@ enum WriteCommand {
         embedding_json: Option<String>,
         responder: oneshot::Sender<Result<()>>,
     },
+    SetConfig {
+        key: String,
+        value: String,
+        responder: oneshot::Sender<Result<()>>,
+    },
+    WalCheckpoint {
+        mode: String,
+        responder: oneshot::Sender<Result<qubit_protocol::WalCheckpointResultDto>>,
+    },
     ExecuteRaw {
         sql: String,
         responder: oneshot::Sender<Result<usize>>,
@@ -239,6 +248,12 @@ impl Storage {
                 FOREIGN KEY(agent_id) REFERENCES agents(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS system_config (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE INDEX IF NOT EXISTS idx_messages_agent ON chat_messages(agent_id);
             CREATE INDEX IF NOT EXISTS idx_checkpoints_agent ON agent_checkpoints(agent_id);
             CREATE INDEX IF NOT EXISTS idx_memory_agent ON memory_chunks(agent_id);",
@@ -333,6 +348,55 @@ impl Storage {
                         )
                         .map(|_| ())
                         .map_err(StorageError::Sqlite);
+                    let _ = responder.send(res);
+                }
+                WriteCommand::SetConfig {
+                    key,
+                    value,
+                    responder,
+                } => {
+                    let res = conn
+                        .execute(
+                            "INSERT INTO system_config (key, value, updated_at) VALUES (?1, ?2, CURRENT_TIMESTAMP)
+                             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+                            params![key, value],
+                        )
+                        .map(|_| ())
+                        .map_err(StorageError::Sqlite);
+                    let _ = responder.send(res);
+                }
+                WriteCommand::WalCheckpoint { mode, responder } => {
+                    let start = std::time::Instant::now();
+                    let pragma_sql = match mode.to_uppercase().as_str() {
+                        "RESTART" => "PRAGMA wal_checkpoint(RESTART)",
+                        "TRUNCATE" => "PRAGMA wal_checkpoint(TRUNCATE)",
+                        "FULL" => "PRAGMA wal_checkpoint(FULL)",
+                        _ => "PRAGMA wal_checkpoint(PASSIVE)",
+                    };
+                    let res = (|| -> Result<qubit_protocol::WalCheckpointResultDto> {
+                        let mut stmt = conn.prepare(pragma_sql)?;
+                        let mut rows = stmt.query([])?;
+                        if let Some(row) = rows.next()? {
+                            let busy: i64 = row.get(0)?;
+                            let log: i64 = row.get(1)?;
+                            let checkpointed: i64 = row.get(2)?;
+                            Ok(qubit_protocol::WalCheckpointResultDto {
+                                success: busy == 0,
+                                checkpoint_mode: mode.clone(),
+                                wal_pages_checkpointed: checkpointed,
+                                wal_pages_remaining: log - checkpointed,
+                                duration_ms: start.elapsed().as_millis() as u64,
+                            })
+                        } else {
+                            Ok(qubit_protocol::WalCheckpointResultDto {
+                                success: true,
+                                checkpoint_mode: mode.clone(),
+                                wal_pages_checkpointed: 0,
+                                wal_pages_remaining: 0,
+                                duration_ms: start.elapsed().as_millis() as u64,
+                            })
+                        }
+                    })();
                     let _ = responder.send(res);
                 }
                 WriteCommand::ExecuteRaw { sql, responder } => {
@@ -601,6 +665,54 @@ impl Storage {
         }
         Ok(list)
     }
+
+    /// Trigger WAL checkpoint through the dedicated background writer actor
+    pub async fn trigger_wal_checkpoint(
+        &self,
+        mode: &str,
+    ) -> Result<qubit_protocol::WalCheckpointResultDto> {
+        let (responder, rx) = oneshot::channel();
+        self.writer_tx
+            .send(WriteCommand::WalCheckpoint {
+                mode: mode.to_string(),
+                responder,
+            })
+            .await
+            .map_err(|e| StorageError::Channel(e.to_string()))?;
+
+        rx.await.map_err(|_| StorageError::WriterTerminated)?
+    }
+
+    /// Set system configuration key-value pair through writer actor
+    pub async fn set_config(&self, key: &str, value: &str) -> Result<()> {
+        let (responder, rx) = oneshot::channel();
+        self.writer_tx
+            .send(WriteCommand::SetConfig {
+                key: key.to_string(),
+                value: value.to_string(),
+                responder,
+            })
+            .await
+            .map_err(|e| StorageError::Channel(e.to_string()))?;
+
+        rx.await.map_err(|_| StorageError::WriterTerminated)?
+    }
+
+    /// Retrieve configuration value by key
+    pub fn get_config(&self, key: &str) -> Result<Option<String>> {
+        let conn = self
+            .reader_conn
+            .lock()
+            .map_err(|e| StorageError::Lock(e.to_string()))?;
+
+        let mut stmt = conn.prepare("SELECT value FROM system_config WHERE key = ?1")?;
+        let mut rows = stmt.query(params![key])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(row.get(0)?))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -656,6 +768,30 @@ mod tests {
         let checkpoints = storage.get_checkpoints(&agent_id).expect("get checkpoints");
         assert_eq!(checkpoints.len(), 1);
         assert_eq!(checkpoints[0].step_index, 1);
+    }
+
+    #[tokio::test]
+    async fn test_wal_checkpoint_and_config() {
+        let storage = Storage::open_in_memory().expect("open in-memory storage");
+
+        // Test configuration persistence
+        storage
+            .set_config("routing.reflex_threshold_ms", "250")
+            .await
+            .expect("set config");
+
+        let val = storage
+            .get_config("routing.reflex_threshold_ms")
+            .expect("get config");
+        assert_eq!(val, Some("250".to_string()));
+
+        // Test WAL checkpoint trigger via writer actor
+        let cp_res = storage
+            .trigger_wal_checkpoint("PASSIVE")
+            .await
+            .expect("checkpoint trigger");
+        assert!(cp_res.success);
+        assert_eq!(cp_res.checkpoint_mode, "PASSIVE");
     }
 }
 
