@@ -113,9 +113,13 @@ enum WriteCommand {
         mode: String,
         responder: oneshot::Sender<Result<qubit_protocol::WalCheckpointResultDto>>,
     },
-    ExecuteRaw {
-        sql: String,
-        responder: oneshot::Sender<Result<usize>>,
+    UpsertRoutine {
+        routine: qubit_protocol::RoutineDto,
+        responder: oneshot::Sender<Result<qubit_protocol::RoutineDto>>,
+    },
+    UpsertMcpAclRule {
+        rule: qubit_protocol::McpAclRuleDto,
+        responder: oneshot::Sender<Result<qubit_protocol::McpAclRuleDto>>,
     },
 }
 
@@ -253,6 +257,41 @@ impl Storage {
                 value TEXT NOT NULL,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS routines (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                cron_expression TEXT NOT NULL,
+                target_agent TEXT NOT NULL,
+                last_run TEXT,
+                next_run TEXT,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                execution_count INTEGER NOT NULL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS mcp_acl_rules (
+                id TEXT PRIMARY KEY,
+                tool_pattern TEXT NOT NULL,
+                access_level TEXT NOT NULL,
+                sandbox_required INTEGER NOT NULL DEFAULT 0,
+                max_memory_mb INTEGER NOT NULL DEFAULT 32,
+                network_egress INTEGER NOT NULL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            INSERT OR IGNORE INTO routines (id, title, cron_expression, target_agent, last_run, next_run, is_active, execution_count)
+            VALUES 
+                ('e2e1a0b3-4f5c-4d8e-9f0a-1b2c3d4e5f60', 'Nightly Memory Pruning & FTS Vacuum', '0 3 * * *', 'agent-lead-architect-core-01', '2026-11-15T03:00:00Z', '2026-11-16T03:00:00Z', 1, 42),
+                ('e2e1a0b3-4f5c-4d8e-9f0a-1b2c3d4e5f61', 'Git Workspace Health & Backup', '0 */6 * * *', 'agent-devops-infrastructure-01', '2026-11-16T00:00:00Z', '2026-11-16T06:00:00Z', 1, 156);
+
+            INSERT OR IGNORE INTO mcp_acl_rules (id, tool_pattern, access_level, sandbox_required, max_memory_mb, network_egress)
+            VALUES
+                ('rule-docs', 'docs_*', 'allow', 0, 32, 0),
+                ('rule-sandbox-re', 'sandbox_re_*', 'allow', 1, 256, 0),
+                ('rule-shell-exec', 'run_command', 'prompt', 1, 128, 1);
 
             CREATE INDEX IF NOT EXISTS idx_messages_agent ON chat_messages(agent_id);
             CREATE INDEX IF NOT EXISTS idx_checkpoints_agent ON agent_checkpoints(agent_id);
@@ -399,8 +438,62 @@ impl Storage {
                     })();
                     let _ = responder.send(res);
                 }
-                WriteCommand::ExecuteRaw { sql, responder } => {
-                    let res = conn.execute(&sql, []).map_err(StorageError::Sqlite);
+                WriteCommand::UpsertRoutine { routine, responder } => {
+                    let id_str = routine.id.to_string();
+                    let is_active_int = if routine.is_active { 1 } else { 0 };
+                    let res = conn
+                        .execute(
+                            "INSERT INTO routines (id, title, cron_expression, target_agent, last_run, next_run, is_active, execution_count, updated_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, CURRENT_TIMESTAMP)
+                             ON CONFLICT(id) DO UPDATE SET
+                                title = excluded.title,
+                                cron_expression = excluded.cron_expression,
+                                target_agent = excluded.target_agent,
+                                last_run = excluded.last_run,
+                                next_run = excluded.next_run,
+                                is_active = excluded.is_active,
+                                execution_count = excluded.execution_count,
+                                updated_at = CURRENT_TIMESTAMP",
+                            params![
+                                id_str,
+                                routine.title,
+                                routine.cron_expression,
+                                routine.target_agent,
+                                routine.last_run,
+                                routine.next_run,
+                                is_active_int,
+                                routine.execution_count as i64,
+                            ],
+                        )
+                        .map(|_| routine)
+                        .map_err(StorageError::Sqlite);
+                    let _ = responder.send(res);
+                }
+                WriteCommand::UpsertMcpAclRule { rule, responder } => {
+                    let sandbox_int = if rule.sandbox_required { 1 } else { 0 };
+                    let egress_int = if rule.network_egress { 1 } else { 0 };
+                    let res = conn
+                        .execute(
+                            "INSERT INTO mcp_acl_rules (id, tool_pattern, access_level, sandbox_required, max_memory_mb, network_egress, updated_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)
+                             ON CONFLICT(id) DO UPDATE SET
+                                tool_pattern = excluded.tool_pattern,
+                                access_level = excluded.access_level,
+                                sandbox_required = excluded.sandbox_required,
+                                max_memory_mb = excluded.max_memory_mb,
+                                network_egress = excluded.network_egress,
+                                updated_at = CURRENT_TIMESTAMP",
+                            params![
+                                rule.id,
+                                rule.tool_pattern,
+                                rule.access_level,
+                                sandbox_int,
+                                rule.max_memory_mb,
+                                egress_int,
+                            ],
+                        )
+                        .map(|_| rule)
+                        .map_err(StorageError::Sqlite);
                     let _ = responder.send(res);
                 }
             }
@@ -713,6 +806,102 @@ impl Storage {
             Ok(None)
         }
     }
+
+    /// Save or update an automated routine atomically via the writer actor
+    pub async fn save_routine(
+        &self,
+        routine: qubit_protocol::RoutineDto,
+    ) -> Result<qubit_protocol::RoutineDto> {
+        let (responder, rx) = oneshot::channel();
+        self.writer_tx
+            .send(WriteCommand::UpsertRoutine { routine, responder })
+            .await
+            .map_err(|e| StorageError::Channel(e.to_string()))?;
+
+        rx.await.map_err(|_| StorageError::WriterTerminated)?
+    }
+
+    /// Retrieve all scheduled automated routines from storage
+    pub fn list_routines(&self) -> Result<Vec<qubit_protocol::RoutineDto>> {
+        let conn = self
+            .reader_conn
+            .lock()
+            .map_err(|e| StorageError::Lock(e.to_string()))?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, title, cron_expression, target_agent, last_run, next_run, is_active, execution_count
+             FROM routines ORDER BY created_at ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let id_str: String = row.get(0)?;
+            let id = uuid::Uuid::parse_str(&id_str).unwrap_or_else(|_| uuid::Uuid::nil());
+            let is_active_int: i64 = row.get(6)?;
+            let exec_count: i64 = row.get(7)?;
+            Ok(qubit_protocol::RoutineDto {
+                id,
+                title: row.get(1)?,
+                cron_expression: row.get(2)?,
+                target_agent: row.get(3)?,
+                last_run: row.get(4)?,
+                next_run: row.get(5)?,
+                is_active: is_active_int != 0,
+                execution_count: exec_count as u64,
+            })
+        })?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
+
+    /// Save or update an MCP ACL rule atomically via the writer actor
+    pub async fn save_mcp_acl_rule(
+        &self,
+        rule: qubit_protocol::McpAclRuleDto,
+    ) -> Result<qubit_protocol::McpAclRuleDto> {
+        let (responder, rx) = oneshot::channel();
+        self.writer_tx
+            .send(WriteCommand::UpsertMcpAclRule { rule, responder })
+            .await
+            .map_err(|e| StorageError::Channel(e.to_string()))?;
+
+        rx.await.map_err(|_| StorageError::WriterTerminated)?
+    }
+
+    /// Retrieve all MCP ACL rules from storage
+    pub fn list_mcp_acl_rules(&self) -> Result<Vec<qubit_protocol::McpAclRuleDto>> {
+        let conn = self
+            .reader_conn
+            .lock()
+            .map_err(|e| StorageError::Lock(e.to_string()))?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, tool_pattern, access_level, sandbox_required, max_memory_mb, network_egress
+             FROM mcp_acl_rules ORDER BY id ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let sandbox_int: i64 = row.get(3)?;
+            let egress_int: i64 = row.get(5)?;
+            Ok(qubit_protocol::McpAclRuleDto {
+                id: row.get(0)?,
+                tool_pattern: row.get(1)?,
+                access_level: row.get(2)?,
+                sandbox_required: sandbox_int != 0,
+                max_memory_mb: row.get(4)?,
+                network_egress: egress_int != 0,
+            })
+        })?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
 }
 
 #[cfg(test)]
@@ -793,5 +982,64 @@ mod tests {
         assert!(cp_res.success);
         assert_eq!(cp_res.checkpoint_mode, "PASSIVE");
     }
+
+    #[tokio::test]
+    async fn test_atomic_routines_and_mcp_acl_rules() {
+        let storage = Storage::open_in_memory().expect("open in-memory storage");
+
+        // Verify seeded default routines
+        let initial_routines = storage.list_routines().expect("list seeded routines");
+        assert_eq!(initial_routines.len(), 2);
+
+        // Atomically upsert a new routine
+        let routine_id = uuid::Uuid::new_v4();
+        let new_routine = qubit_protocol::RoutineDto {
+            id: routine_id,
+            title: "Auditor Test Routine".into(),
+            cron_expression: "0 0 * * *".into(),
+            target_agent: "agent-qa-test-engineer-01".into(),
+            last_run: None,
+            next_run: Some("2026-11-17T00:00:00Z".into()),
+            is_active: true,
+            execution_count: 0,
+        };
+
+        storage
+            .save_routine(new_routine.clone())
+            .await
+            .expect("save routine");
+
+        let updated_routines = storage.list_routines().expect("list updated routines");
+        assert_eq!(updated_routines.len(), 3);
+        let found = updated_routines.iter().find(|r| r.id == routine_id);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().title, "Auditor Test Routine");
+
+        // Verify seeded ACL rules
+        let initial_rules = storage.list_mcp_acl_rules().expect("list seeded rules");
+        assert_eq!(initial_rules.len(), 3);
+
+        // Atomically upsert a new ACL rule
+        let new_rule = qubit_protocol::McpAclRuleDto {
+            id: "rule-custom-audit".into(),
+            tool_pattern: "audit_*".into(),
+            access_level: "deny".into(),
+            sandbox_required: true,
+            max_memory_mb: 64,
+            network_egress: false,
+        };
+
+        storage
+            .save_mcp_acl_rule(new_rule.clone())
+            .await
+            .expect("save mcp acl rule");
+
+        let updated_rules = storage.list_mcp_acl_rules().expect("list updated rules");
+        assert_eq!(updated_rules.len(), 4);
+        let found_rule = updated_rules.iter().find(|r| r.id == "rule-custom-audit");
+        assert!(found_rule.is_some());
+        assert_eq!(found_rule.unwrap().access_level, "deny");
+    }
 }
+
 

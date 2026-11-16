@@ -32,8 +32,8 @@ fn get_storage() -> &'static Storage {
     STORAGE.get_or_init(|| {
         let db_path = std::env::var("QUBIT_DB_PATH").unwrap_or_else(|_| "qubit.db".to_string());
         Storage::open(&db_path).unwrap_or_else(|err| {
-            tracing::warn!("[!] Failed to open database '{db_path}': {err}, using in-memory storage");
-            Storage::open_in_memory().expect("in-memory db initialization")
+            tracing::error!("FATAL: Failed to initialize persistent SQLite database at '{db_path}': {err}");
+            panic!("FATAL: Failed to initialize persistent SQLite database at '{db_path}': {err}");
         })
     })
 }
@@ -368,106 +368,28 @@ fn get_routing_config() -> Result<RoutingConfigDto, String> {
 #[tauri::command]
 async fn get_routines() -> Result<Vec<RoutineDto>, String> {
     let storage = get_storage();
-    if let Ok(Some(json)) = storage.get_config("routines_list") {
-        if let Ok(list) = serde_json::from_str::<Vec<RoutineDto>>(&json) {
-            return Ok(list);
-        }
-    }
-    Ok(vec![
-        RoutineDto {
-            id: uuid::Uuid::new_v4(),
-            title: "Nightly Memory Pruning & FTS Vacuum".into(),
-            cron_expression: "0 3 * * *".into(),
-            target_agent: "agent-lead-architect-core-01".into(),
-            last_run: Some("2026-11-15T03:00:00Z".into()),
-            next_run: Some("2026-11-16T03:00:00Z".into()),
-            is_active: true,
-            execution_count: 42,
-        },
-        RoutineDto {
-            id: uuid::Uuid::new_v4(),
-            title: "Git Workspace Health & Backup".into(),
-            cron_expression: "0 */6 * * *".into(),
-            target_agent: "agent-devops-infrastructure-01".into(),
-            last_run: Some("2026-11-16T00:00:00Z".into()),
-            next_run: Some("2026-11-16T06:00:00Z".into()),
-            is_active: true,
-            execution_count: 156,
-        },
-    ])
+    storage.list_routines().map_err(|e| e.to_string())
 }
 
-/// Create or update an automated routine
+/// Create or update an automated routine atomically via SQLite writer actor
 #[tauri::command]
 async fn save_routine(routine: RoutineDto) -> Result<RoutineDto, String> {
     let storage = get_storage();
-    let mut list = get_routines().await.unwrap_or_default();
-    if let Some(pos) = list.iter().position(|r| r.id == routine.id) {
-        list[pos] = routine.clone();
-    } else {
-        list.push(routine.clone());
-    }
-    let serialized = serde_json::to_string(&list).map_err(|e| e.to_string())?;
-    storage
-        .set_config("routines_list", &serialized)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(routine)
+    storage.save_routine(routine).await.map_err(|e| e.to_string())
 }
 
 /// Retrieve MCP ACL rules
 #[tauri::command]
 async fn get_mcp_acl_rules() -> Result<Vec<McpAclRuleDto>, String> {
     let storage = get_storage();
-    if let Ok(Some(json)) = storage.get_config("mcp_acl_rules") {
-        if let Ok(list) = serde_json::from_str::<Vec<McpAclRuleDto>>(&json) {
-            return Ok(list);
-        }
-    }
-    Ok(vec![
-        McpAclRuleDto {
-            id: "rule-docs".into(),
-            tool_pattern: "docs_*".into(),
-            access_level: "allow".into(),
-            sandbox_required: false,
-            max_memory_mb: 32,
-            network_egress: false,
-        },
-        McpAclRuleDto {
-            id: "rule-sandbox-re".into(),
-            tool_pattern: "sandbox_re_*".into(),
-            access_level: "allow".into(),
-            sandbox_required: true,
-            max_memory_mb: 256,
-            network_egress: false,
-        },
-        McpAclRuleDto {
-            id: "rule-shell-exec".into(),
-            tool_pattern: "run_command".into(),
-            access_level: "prompt".into(),
-            sandbox_required: true,
-            max_memory_mb: 128,
-            network_egress: true,
-        },
-    ])
+    storage.list_mcp_acl_rules().map_err(|e| e.to_string())
 }
 
-/// Save or update an MCP ACL rule
+/// Save or update an MCP ACL rule atomically via SQLite writer actor
 #[tauri::command]
 async fn save_mcp_acl_rule(rule: McpAclRuleDto) -> Result<McpAclRuleDto, String> {
     let storage = get_storage();
-    let mut list = get_mcp_acl_rules().await.unwrap_or_default();
-    if let Some(pos) = list.iter().position(|r| r.id == rule.id) {
-        list[pos] = rule.clone();
-    } else {
-        list.push(rule.clone());
-    }
-    let serialized = serde_json::to_string(&list).map_err(|e| e.to_string())?;
-    storage
-        .set_config("mcp_acl_rules", &serialized)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(rule)
+    storage.save_mcp_acl_rule(rule).await.map_err(|e| e.to_string())
 }
 
 // =============================================================================
@@ -499,6 +421,8 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            // Eagerly initialize persistent storage (fail-fast if db path inaccessible)
+            let _ = get_storage();
             let handle = app.handle().clone();
 
             // 1. Setup Global Shortcut (CommandOrControl+Shift+Q)

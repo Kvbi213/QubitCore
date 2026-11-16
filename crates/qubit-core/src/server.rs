@@ -4,7 +4,7 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Path, State,
+        DefaultBodyLimit, Path, State,
     },
     http::StatusCode,
     response::Response,
@@ -63,6 +63,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         // Core System Health & Telemetry
         .route("/health", get(health_check))
+        .route("/api/health", get(health_check))
         // Real-Time Event Stream
         .route("/ws", get(ws_handler))
         // Dynamic Agent Routing (/api/v1/agents/*)
@@ -74,6 +75,7 @@ pub fn build_router(state: AppState) -> Router {
         // Dynamic Tool & MCP Routing (/api/v1/tools/*)
         .route("/api/v1/tools", get(list_tools))
         .route("/api/v1/tools/:name/call", post(call_tool))
+        .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -104,7 +106,7 @@ async fn list_agents(
         error!("Failed to list agents: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e.to_string() })),
+            Json(serde_json::json!({ "error": "Internal server error" })),
         )
     })?;
 
@@ -139,7 +141,7 @@ async fn create_agent(
             error!("Failed to create agent: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": e.to_string() })),
+                Json(serde_json::json!({ "error": "Internal server error" })),
             )
         })?;
 
@@ -173,7 +175,7 @@ async fn get_agent(
             error!("Database error fetching agent {}: {}", id, e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": e.to_string() })),
+                Json(serde_json::json!({ "error": "Internal server error" })),
             )
         })?
         .ok_or_else(|| {
@@ -213,10 +215,10 @@ async fn execute_agent(
         .execute_agent_task(id, mode, payload.task)
         .await
         .map_err(|e| {
-            error!("Agent execution failed: {}", e);
+            error!("Agent execution failed for agent {}: {}", id, e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": e.to_string() })),
+                Json(serde_json::json!({ "error": "Failed to execute agent task" })),
             )
         })?;
 
@@ -249,9 +251,10 @@ async fn get_agent_messages(
         .storage
         .get_messages(Some(&id_str), 100)
         .map_err(|e| {
+            error!("Database error fetching messages for agent {}: {}", id, e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": e.to_string() })),
+                Json(serde_json::json!({ "error": "Internal server error" })),
             )
         })?;
 
@@ -265,9 +268,10 @@ async fn get_agent_checkpoints(
 ) -> Result<Json<Vec<qubit_storage::CheckpointRecord>>, (StatusCode, Json<serde_json::Value>)> {
     let id_str = id.to_string();
     let checkpoints = state.storage.get_checkpoints(&id_str).map_err(|e| {
+        error!("Database error fetching checkpoints for agent {}: {}", id, e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e.to_string() })),
+            Json(serde_json::json!({ "error": "Internal server error" })),
         )
     })?;
 
@@ -370,7 +374,9 @@ mod tests {
         let state = create_test_state();
         let app = build_router(state);
 
+        // Test root health endpoint
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/health")
@@ -381,6 +387,19 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+
+        // Test /api/health endpoint
+        let api_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(api_response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
