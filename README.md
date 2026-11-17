@@ -8,6 +8,7 @@
 [![Rust](https://img.shields.io/badge/rust-2021%20edition-orange.svg)](https://www.rust-lang.org)
 [![Footprint](https://img.shields.io/badge/RAM%20Budget-%3C%2060%20MB%20idle-emerald.svg)](#ram-budget--performance-targets)
 [![Status](https://img.shields.io/badge/status-Phase%200%20Scaffolded-green.svg)](#implementation-roadmap)
+[![Pobierz Qubit dla Windows (.exe)](https://img.shields.io/badge/Pobierz%20Qubit%20dla%20Windows-.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Kvbi213/QubitCore/releases/latest/download/qubit-setup.exe)
 
 <p align="center">
   <i>„Jeden Mózg, Wiele Oczu i Rąk”</i><br>
@@ -15,6 +16,15 @@
 </p>
 
 </div>
+
+---
+
+### 📥 Pobierz Qubit dla Windows (.exe)
+Najszybszy sposób na uruchomienie QubitCore na maszynie z systemem Windows to pobranie autonomicznego instalatora i bootstrapper’a:
+
+👉 **[Pobierz najnowszą wersję: qubit-setup.exe](https://github.com/Kvbi213/QubitCore/releases/latest/download/qubit-setup.exe)**
+
+*Bootstrapper automatycznie weryfikuje dostępność najnowszych wydań QubitCore na GitHubie, przeprowadza wstępną konfigurację środowiska, tworzy skróty i uruchamia stację Mission Control.*
 
 ---
 
