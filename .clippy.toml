@@ -1,0 +1,6 @@
+avoid-breaking-exported-api = false
+cognitive-complexity-threshold = 25
+doc-valid-idents = ["Qubit", "QubitCore", "Hermes", "JSON-RPC", "WAL", "MCP", "SQLite"]
+too-many-arguments-threshold = 7
+type-complexity-threshold = 250
+single-char-binding-names-threshold = 4

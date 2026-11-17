@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "QubitDash — Mission Control",
+        "title": "QubitDash \u2014 Mission Control",
         "width": 1180,
         "height": 760,
         "minWidth": 900,
@@ -31,10 +31,10 @@
       "id": "qubit-main-tray",
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
-      "tooltip": "QubitDash — Mission Control (RAM ~3MB idle)"
+      "tooltip": "QubitDash \u2014 Mission Control (RAM ~3MB idle)"
     },
     "security": {
-      "csp": "default-src 'self' ws://localhost:3000 http://localhost:3000; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+      "csp": "default-src 'self' ws://127.0.0.1:4000 http://127.0.0.1:4000 ws://localhost:4000 http://localhost:4000; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
     }
   },
   "bundle": {

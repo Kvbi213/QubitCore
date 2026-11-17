@@ -1,0 +1,10 @@
+edition = "2021"
+newline_style = "Unix"
+use_small_heuristics = "Default"
+max_width = 100
+tab_spaces = 4
+format_strings = true
+format_macro_matchers = true
+format_macro_bodies = true
+reorder_imports = true
+reorder_modules = true

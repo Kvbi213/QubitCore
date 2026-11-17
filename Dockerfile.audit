@@ -1,0 +1,28 @@
+# Dockerfile for QubitCore test & audit runner
+# Constrained to 3.5 GB RAM environment
+FROM rust:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_INCREMENTAL=0
+ENV RUST_BACKTRACE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    libsqlite3-dev \
+    libz-dev \
+    curl \
+    git \
+    python3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cargo-binstall and testing toolchain
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+    && cargo-binstall --no-confirm cargo-nextest cargo-audit cargo-deny cargo-machete cargo-geiger \
+    && curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks \
+    && chmod +x /usr/local/bin/gitleaks
+
+WORKDIR /workspace
+CMD ["make", "check"]
