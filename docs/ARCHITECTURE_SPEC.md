@@ -861,6 +861,20 @@ Pamięć długoterminowa działa asynchronicznie poza ścieżką krytyczną gene
 2. Zbuforowane wyniki z poprzedniej tury są wstrzykiwane bezpośrednio do promptu systemowego nowej tury, co gwarantuje 0 ms narzutu opóźnienia na czas generowania odpowiedzi.
 3. Podsystem chroniony jest bezpiecznikiem Circuit Breaker: po zarejestrowaniu 5 kolejnych błędów z rzędu podsystem pamięci zostaje uśpiony na 2 minuty, zapobiegając destabilizacji głównej pętli dialogowej.
 
+6.5. Innowacja: Air-Gapped Two-Tier Memory & Context Fact Dispatcher (QubitDocs)
+
+Nowa innowacja architektoniczna integrująca otwartą bazę wiedzy (QubitDocs) z wewnętrzną warstwą pamięci operacyjnej QubitCore oraz selekcjonowaniem wyłącznie istotnych faktów kontekstowych przed głównym modelem decyzyjnym:
+
+1. Dwa odizolowane skarbce (Two-Tier Air-Gapped Memory):
+   * **System Vault** (`.qubit/system/`): ukryta pamięć operacyjna — logi kompresji, checkpointy oraz destylowane fakty z czatów. Główny model (Claude / Gemini Pro) nie wie o jej istnieniu.
+   * **User Vault** (QubitDocs / Obsidian `docs/`): jawna baza wiedzy użytkownika — notatki w czystym Markdown, plany i wiki.
+
+2. Context Fact Filter / Prompt Dispatcher:
+   * Mały model pomocniczy (Flint 40B, Groq, Ollama) pełni rolę filtra faktów i dyspozera promptu: po otrzymaniu promptu od użytkownika błyskawicznie analizuje treść i selekcjonuje z bazy QubitDocs tylko te fakty, które są precyzyjnie potrzebne do danego pytania.
+   * Do głównego, drogiego modelu trafia zwięzły ekstrakt (np. ~300 tokenów zamiast 80 000 tokenów), co drastycznie ogranicza koszty i chroni limity subskrypcji AI.
+
+3. Promocja ekosystemu: Użytkownik widzi, że Qubit sam buduje mu bazę wiedzy w QubitDocs i Obsidian bez wysiłku.
+
 7. Etap 6: Nadzór Tokio Supervisora, Kontrola Zasobów cgroups v2 i Ochrona OOM (qubit-sandbox / cgroups)
 
 Działanie na maszynach o zasobach 1–2 GB RAM wymaga rygorystycznej ochrony przed jądrowym mechanizmem OOM Killer, który w przypadku wyczerpania pamięci zabija procesy w sposób arbitralny.

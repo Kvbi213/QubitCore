@@ -153,6 +153,19 @@ Zamiast dekompilować gigantyczne pliki binarne do gigantycznych promptów LLM:
 ### 2. Zero-Config Handshake (MCP)
 Rejestr `qubit-mcp` automatycznie wykrywa lokalne i zdalne serwery MCP, przeprowadza walidację schematów JSON-Schema wejścia/wyjścia i wystawia je dla silnika agentów bez konieczności restartu demona.
 
+### 3. Air-Gapped Two-Tier Memory & Context Fact Dispatcher (QubitDocs)
+Innowacja integrująca otwartą bazę wiedzy (QubitDocs) z wewnętrzną architekturą pamięci QubitCore oraz selekcjonowaniem wyłącznie istotnych faktów kontekstowych przed głównym modelem decyzyjnym:
+
+1. **Dwa odizolowane skarbce (Two-Tier Air-Gapped Memory):**
+   - **System Vault** (`.qubit/system/`): ukryta pamięć operacyjna — logi kompresji, checkpointy oraz destylowane fakty z czatów. Główny model (Claude / Gemini Pro) nie wie o jej istnieniu.
+   - **User Vault** (QubitDocs / Obsidian `docs/`): jawna baza wiedzy użytkownika — notatki w czystym Markdown, plany i wiki.
+
+2. **Context Fact Filter / Prompt Dispatcher:**
+   - Mały model pomocniczy (Flint 40B, Groq, Ollama) błyskawicznie analizuje prompt i selekcjonuje z bazy QubitDocs tylko te fakty, które są precyzyjnie potrzebne do danego pytania („on pyta o to, więc fakt A i B się przyda, ale reszta 100k tokenów nie").
+   - Do głównego, drogiego modelu trafia zwięzły ekstrakt (np. ~300 tokenów zamiast 80 000), co drastycznie ucina koszty i chroni limity subskrypcji AI.
+
+3. **Promocja ekosystemu:** Użytkownik widzi, że Qubit sam buduje mu bazę wiedzy w QubitDocs i Obsidian bez wysiłku.
+
 ---
 
 ## 🗺️ Fazy Wdrożenia (Roadmap)
