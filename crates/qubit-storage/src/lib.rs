@@ -137,13 +137,13 @@ impl Storage {
         let is_memory = path_ref.to_string_lossy() == ":memory:";
 
         let (writer_conn, reader_conn) = if is_memory {
-            // Shared in-memory database using URI
-            let uri = "file:qubit_mem?mode=memory&cache=shared";
+            // Shared in-memory database using unique URI per instance
+            let uri = format!("file:qubit_mem_{}?mode=memory&cache=shared", uuid::Uuid::new_v4());
             let flags = OpenFlags::SQLITE_OPEN_URI
                 | OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE;
-            let w = Connection::open_with_flags(uri, flags)?;
-            let r = Connection::open_with_flags(uri, flags)?;
+            let w = Connection::open_with_flags(&uri, flags)?;
+            let r = Connection::open_with_flags(&uri, flags)?;
             (w, r)
         } else {
             if let Some(parent) = path_ref.parent() {
@@ -961,7 +961,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_wal_checkpoint_and_config() {
-        let storage = Storage::open_in_memory().expect("open in-memory storage");
+        let db_file = std::env::temp_dir().join(format!("qubit_test_wal_{}.db", uuid::Uuid::new_v4()));
+        let storage = Storage::open(&db_file).expect("open file storage");
 
         // Test configuration persistence
         storage
@@ -981,6 +982,11 @@ mod tests {
             .expect("checkpoint trigger");
         assert!(cp_res.success);
         assert_eq!(cp_res.checkpoint_mode, "PASSIVE");
+
+        // Cleanup test file
+        let _ = std::fs::remove_file(&db_file);
+        let _ = std::fs::remove_file(format!("{}-wal", db_file.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", db_file.display()));
     }
 
     #[tokio::test]
