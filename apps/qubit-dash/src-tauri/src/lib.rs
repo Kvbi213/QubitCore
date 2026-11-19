@@ -30,7 +30,7 @@ const GLOBAL_SHORTCUT_STR: &str = "CommandOrControl+Shift+Q";
 
 fn get_storage() -> &'static Storage {
     STORAGE.get_or_init(|| {
-        let db_path = std::env::var("QUBIT_DB_PATH").unwrap_or_else(|_| "qubit.db".to_string());
+        let db_path = std::env::var("QUBIT_DB_PATH").unwrap_or_else(|_| "qubit_data.db".to_string());
         Storage::open(&db_path).unwrap_or_else(|err| {
             tracing::error!("FATAL: Failed to initialize persistent SQLite database at '{db_path}': {err}");
             panic!("FATAL: Failed to initialize persistent SQLite database at '{db_path}': {err}");
@@ -192,7 +192,7 @@ fn read_process_rss_bytes() -> u64 {
 }
 
 fn get_wal_file_size() -> u64 {
-    let candidates = ["qubit.db-wal", "/tmp/qubit.db-wal"];
+    let candidates = ["qubit_data.db-wal", "/tmp/qubit_data.db-wal"];
     for c in &candidates {
         if let Ok(meta) = std::fs::metadata(c) {
             return meta.len();

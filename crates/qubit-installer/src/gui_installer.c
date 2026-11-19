@@ -83,7 +83,7 @@ BOOL CreateShellShortcut(LPCWSTR szShortcutPath, LPCWSTR szTargetPath, LPCWSTR s
         psl->lpVtbl->SetPath(psl, szTargetPath);
         if (szWorkingDir) psl->lpVtbl->SetWorkingDirectory(psl, szWorkingDir);
         if (szIconPath) psl->lpVtbl->SetIconLocation(psl, szIconPath, 0);
-        psl->lpVtbl->SetDescription(psl, L"QubitDash & QubitCore — Osobisty Ekosystem Operacyjny (OmniDash Reborn)");
+        psl->lpVtbl->SetDescription(psl, L"QubitDash — Natywne Centrum Dowodzenia (Mission Control)");
         
         hr = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf);
         if (SUCCEEDED(hr)) {
@@ -153,12 +153,13 @@ void PerformInstallation(void) {
               "  \"zero_trust_mcp\": true,\n"
               "  \"wal_mode\": true,\n"
               "  \"hermes_compression\": true,\n"
-              "  \"omnidash_architecture\": true\n"
+              "  \"control_plane\": true,\n"
+              "  \"plasma_glow\": true\n"
               "}\n", fCfg);
         fclose(fCfg);
     }
 
-    // 4. Konfiguracja launchera QubitDash (wzorzec OmniDash)
+    // 4. Konfiguracja launchera QubitDash (QubitDash)
     SetStatus(L"Krok 4/6: Konfiguracja pulpitu QubitDash (Mission Control)...", 75);
     WCHAR szLauncherPath[MAX_PATH];
     wsprintfW(szLauncherPath, L"%s\\bin\\QubitDash.bat", g_szInstallDir);
@@ -184,7 +185,7 @@ void PerformInstallation(void) {
         WCHAR szDesktopDir[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, szDesktopDir))) {
             WCHAR szLnkPath[MAX_PATH];
-            wsprintfW(szLnkPath, L"%s\\QubitDash (OmniDash).lnk", szDesktopDir);
+            wsprintfW(szLnkPath, L"%s\\QubitDash.lnk", szDesktopDir);
             CreateShellShortcut(szLnkPath, szLauncherPath, szCurrentExe, g_szInstallDir);
         }
     }
@@ -203,7 +204,7 @@ void PerformInstallation(void) {
 
     MessageBoxW(hMainWnd, 
         L"Instalacja Ekosystemu QubitCore & QubitDash zakonczona sukcesem!\n\n"
-        L"* Skrot 'QubitDash (OmniDash)' z ikona Plasma Glow powstal na Pulpicie.\n"
+        L"* Skrot 'QubitDash' z ikona Plasma Glow powstal na Pulpicie.\n"
         L"* Silnik QubitCore oraz baza SQLite WAL sa skonfigurowane.\n"
         L"* Gotowy do integracji z telemetria i kognitywnym asystentem AI.",
         L"⚡ Qubit Setup — Sukces", MB_OK | MB_ICONINFORMATION);
@@ -241,7 +242,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                         WS_CHILD | WS_VISIBLE | SS_LEFT, 30, 20, 520, 28, hWnd, NULL, NULL, NULL);
             SendMessage(hTitle, WM_SETFONT, (WPARAM)hFontTitle, TRUE);
 
-            HWND hSub = CreateWindowW(L"STATIC", L"Osobisty Ekosystem Operacyjny & Asystencki (Wzorzec OmniDash Reborn)",
+            HWND hSub = CreateWindowW(L"STATIC", L"QubitDash — Natywne Centrum Dowodzenia (Mission Control)",
                                       WS_CHILD | WS_VISIBLE | SS_LEFT, 30, 48, 520, 20, hWnd, NULL, NULL, NULL);
             SendMessage(hSub, WM_SETFONT, (WPARAM)hFontSub, TRUE);
 
@@ -257,7 +258,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SendMessage(hChkCore, WM_SETFONT, (WPARAM)hFontBold, TRUE);
 
             // Checkbox 2: QubitDash (OmniDash Reborn)
-            hChkDash = CreateWindowW(L"BUTTON", L"QubitDash (Pulpit dowodzenia OmniDash: telemetria SSE, agenci AI, narzedzia MCP)",
+            hChkDash = CreateWindowW(L"BUTTON", L"QubitDash (Natywne Centrum Dowodzenia: telemetria SSE, agenci AI, narzedzia MCP)",
                                      WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 45, 150, 490, 22, hWnd, (HMENU)ID_CHK_DASH, NULL, NULL);
             SendMessage(hChkDash, BM_SETCHECK, BST_CHECKED, 0);
             SendMessage(hChkDash, WM_SETFONT, (WPARAM)hFontBold, TRUE);
@@ -268,7 +269,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SendMessage(hChkCli, WM_SETFONT, (WPARAM)hFontUI, TRUE);
 
             // Checkbox 4: QubitDocs & Memory
-            hChkDocs = CreateWindowW(L"BUTTON", L"QubitDocs & Memory (Air-Gapped Two-Tier Memory: skarbiec wiedzy i Obsidian)",
+            hChkDocs = CreateWindowW(L"BUTTON", L"QubitDocs & Memory (QubitDocs (Baza Wiedzy Clean Markdown First, SQLite FTS5 BM25, QubitDocs Agent))",
                                      WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 45, 206, 490, 22, hWnd, (HMENU)ID_CHK_DOCS, NULL, NULL);
             SendMessage(hChkDocs, WM_SETFONT, (WPARAM)hFontUI, TRUE);
 
@@ -352,7 +353,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             RECT rc;
             GetClientRect(hWnd, &rc);
 
-            // Tło okna (Deep Obsidian)
+            // Tło okna (Deep Dark)
             FillRect(hdc, &rc, hBrBg);
 
             // Neonowa linia rozdzielająca pod nagłówkiem (Plasma Glow)

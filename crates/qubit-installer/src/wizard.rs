@@ -20,7 +20,7 @@ impl Default for InstallConfig {
         Self {
             install_dir: default_install_dir(),
             daemon_port: 4000,
-            db_path: "qubit.db".to_string(),
+            db_path: "qubit_data.db".to_string(),
             create_desktop_shortcut: true,
             create_start_menu_shortcut: true,
         }
@@ -147,7 +147,7 @@ mod tests {
     fn test_default_config() {
         let cfg = InstallConfig::default();
         assert_eq!(cfg.daemon_port, 4000);
-        assert_eq!(cfg.db_path, "qubit.db");
+        assert_eq!(cfg.db_path, "qubit_data.db");
         assert!(cfg.create_desktop_shortcut);
         assert!(cfg.create_start_menu_shortcut);
     }

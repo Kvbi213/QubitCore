@@ -4,11 +4,10 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
+use specta::Type;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionMode {
     /// Fast direct execution without persistent sub-agents
@@ -17,8 +16,7 @@ pub enum ExecutionMode {
     Deep,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum MessageRole {
     System,
@@ -27,8 +25,7 @@ pub enum MessageRole {
     Tool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ChatMessage {
     pub id: Uuid,
     pub role: MessageRole,
@@ -38,16 +35,14 @@ pub struct ChatMessage {
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ToolCall {
     pub id: String,
     pub name: String,
     pub arguments: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ToolResult {
     pub call_id: String,
     pub success: bool,
@@ -55,8 +50,7 @@ pub struct ToolResult {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentStatus {
     Idle,
@@ -67,8 +61,7 @@ pub enum AgentStatus {
     Completed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct AgentDescriptor {
     pub id: Uuid,
     pub name: String,
@@ -78,8 +71,7 @@ pub struct AgentDescriptor {
     pub memory_usage_bytes: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(tag = "type", content = "payload")]
 pub enum WebSocketEvent {
     AgentStatusChanged(AgentDescriptor),
@@ -98,38 +90,33 @@ pub enum WebSocketEvent {
     TelemetryUpdate(SystemTelemetryDto),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct CreateAgentRequest {
     pub name: String,
     pub role: String,
     pub mode: Option<ExecutionMode>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ExecuteTaskRequest {
     pub task: String,
     #[serde(default)]
     pub mode: Option<ExecutionMode>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ExecuteTaskResponse {
     pub agent_id: Uuid,
     pub message: ChatMessage,
     pub status: AgentStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct CallToolRequest {
     pub arguments: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct HealthResponse {
     pub status: String,
     pub version: String,
@@ -142,8 +129,7 @@ pub struct HealthResponse {
 // PLASMA EDITION TELEMETRY & MANAGEMENT DTOs
 // =============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct SystemTelemetryDto {
     pub memory_rss_bytes: u64,
     pub memory_limit_bytes: u64,
@@ -163,8 +149,7 @@ pub struct SystemTelemetryDto {
     pub uptime_secs: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ProviderStatusDto {
     pub id: String,
     pub name: String,
@@ -177,8 +162,7 @@ pub struct ProviderStatusDto {
     pub auth_mode: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct RoutingConfigDto {
     pub reflex_threshold_ms: u32,
     pub deep_threshold_ms: u32,
@@ -188,8 +172,7 @@ pub struct RoutingConfigDto {
     pub fallback_provider: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct RoutineDto {
     pub id: Uuid,
     pub title: String,
@@ -201,8 +184,7 @@ pub struct RoutineDto {
     pub execution_count: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct McpAclRuleDto {
     pub id: String,
     pub tool_pattern: String,
@@ -212,8 +194,7 @@ pub struct McpAclRuleDto {
     pub network_egress: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "protocol/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct WalCheckpointResultDto {
     pub success: bool,
     pub checkpoint_mode: String,

@@ -10,7 +10,7 @@ struct Args {
     #[arg(short, long, default_value = "127.0.0.1:4000")]
     bind: SocketAddr,
 
-    #[arg(short, long, default_value = "qubit.db")]
+    #[arg(short, long, default_value = "qubit_data.db")]
     db: String,
 }
 

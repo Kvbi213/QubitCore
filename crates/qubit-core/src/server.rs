@@ -68,13 +68,13 @@ pub fn build_router(state: AppState) -> Router {
         .route("/ws", get(ws_handler))
         // Dynamic Agent Routing (/api/v1/agents/*)
         .route("/api/v1/agents", get(list_agents).post(create_agent))
-        .route("/api/v1/agents/:id", get(get_agent))
-        .route("/api/v1/agents/:id/execute", post(execute_agent))
-        .route("/api/v1/agents/:id/messages", get(get_agent_messages))
-        .route("/api/v1/agents/:id/checkpoints", get(get_agent_checkpoints))
+        .route("/api/v1/agents/{id}", get(get_agent))
+        .route("/api/v1/agents/{id}/execute", post(execute_agent))
+        .route("/api/v1/agents/{id}/messages", get(get_agent_messages))
+        .route("/api/v1/agents/{id}/checkpoints", get(get_agent_checkpoints))
         // Dynamic Tool & MCP Routing (/api/v1/tools/*)
         .route("/api/v1/tools", get(list_tools))
-        .route("/api/v1/tools/:name/call", post(call_tool))
+        .route("/api/v1/tools/{name}/call", post(call_tool))
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -329,7 +329,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             if let Ok(json) = serde_json::to_string(&msg) {
-                if socket.send(Message::Text(json)).await.is_err() {
+                if socket.send(Message::Text(json.into())).await.is_err() {
                     break;
                 }
             }

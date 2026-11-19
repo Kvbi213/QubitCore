@@ -164,7 +164,7 @@ pub fn initialize_install_directory(config: &InstallConfig) -> Result<()> {
            Linux  : ./qubit-launcher.sh\n\n\
          Struktura katalogów:\n\
            bin/       - Pliki wykonywalne (qubit-core, qubit-dash, qubit CLI)\n\
-           data/      - Trwała baza danych SQLite WAL (qubit.db)\n\
+           data/      - Trwała baza danych SQLite WAL (qubit_data.db)\n\
            config/    - Pliki konfiguracji i ACL narzędzi\n\
            resources/ - Ikony i zasoby graficzne\n\
            qubit.env  - Zmienne środowiskowe środowiska wykonawczego\n",
