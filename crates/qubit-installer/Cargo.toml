@@ -26,5 +26,5 @@ indicatif = "0.17"
 winres = "0.1"
 
 [[bin]]
-name = "qubit-setup"
+name = "QubitInstaller"
 path = "src/main.rs"

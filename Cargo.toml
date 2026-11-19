@@ -37,7 +37,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # Serialization & Protocols
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ts-rs = "9.0"
+ts-rs = { version = "9.0", features = ["uuid-impl", "chrono-impl", "serde-json-impl"] }
 
 # Storage
 rusqlite = { version = "0.42", features = ["bundled"] }
