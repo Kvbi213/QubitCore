@@ -2,21 +2,14 @@
 name = "qubit-cli"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
-repository.workspace = true
 
 [dependencies]
-qubit-protocol = { workspace = true }
-qubit-mcp = { workspace = true }
-clap = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-reqwest = { workspace = true }
-anyhow = { workspace = true }
-chrono = { workspace = true }
-
-[[bin]]
-name = "qubit"
-path = "src/main.rs"
+qubit-protocol.workspace = true
+tokio.workspace = true
+clap.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true

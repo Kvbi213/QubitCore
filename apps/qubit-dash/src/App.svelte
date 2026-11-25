@@ -1,12 +1,16 @@
 <script lang="ts">
-  import Header from './lib/components/Header.svelte';
-  import DaemonStatusCard from './lib/components/DaemonStatusCard.svelte';
-  import MemoryBudgetGauge from './lib/components/MemoryBudgetGauge.svelte';
-  import AgentListCard from './lib/components/AgentListCard.svelte';
-  import McpToolsCard from './lib/components/McpToolsCard.svelte';
-  import LiveEventsConsole from './lib/components/LiveEventsConsole.svelte';
+  import TopNav from './lib/components/TopNav.svelte';
+  import Sidebar from './lib/components/Sidebar.svelte';
+  import OverviewView from './lib/components/views/OverviewView.svelte';
+  import ProvidersAuthView from './lib/components/views/ProvidersAuthView.svelte';
+  import ModeRoutingView from './lib/components/views/ModeRoutingView.svelte';
+  import RoutinesView from './lib/components/views/RoutinesView.svelte';
+  import SecurityStorageView from './lib/components/views/SecurityStorageView.svelte';
+  import type { ActiveTab } from './lib/types/navigation';
   import { onMount } from 'svelte';
   import { connectionStore } from './lib/stores/connection.svelte';
+
+  let activeTab = $state<ActiveTab>('overview');
 
   onMount(() => {
     // Keyboard shortcut handler for Webview inside app
@@ -23,27 +27,28 @@
   });
 </script>
 
-<div class="h-screen w-screen flex flex-col bg-[#070a12] text-zinc-100 overflow-hidden">
+<div class="h-screen w-screen flex flex-col bg-plasma-bg text-zinc-100 overflow-hidden font-sans">
   <!-- Top Navigation Bar -->
-  <Header />
+  <TopNav />
 
-  <!-- Mission Control Dashboard Body -->
-  <main class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-    <!-- Top Deck: System Core Status & Memory Gauge -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <DaemonStatusCard />
-      <MemoryBudgetGauge />
-    </div>
+  <!-- Main Work Area with Sidebar -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Left Sidebar: Control Hierarchy -->
+    <Sidebar {activeTab} onSelect={(tab) => (activeTab = tab)} />
 
-    <!-- Middle Deck: Agent Pool & MCP Capabilities -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <AgentListCard />
-      <McpToolsCard />
-    </div>
-
-    <!-- Bottom Deck: Real-Time Telemetry Stream -->
-    <div>
-      <LiveEventsConsole />
-    </div>
-  </main>
+    <!-- Active Viewport -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-5">
+      {#if activeTab === 'overview'}
+        <OverviewView />
+      {:else if activeTab === 'providers'}
+        <ProvidersAuthView />
+      {:else if activeTab === 'routing'}
+        <ModeRoutingView />
+      {:else if activeTab === 'routines'}
+        <RoutinesView />
+      {:else if activeTab === 'security'}
+        <SecurityStorageView />
+      {/if}
+    </main>
+  </div>
 </div>

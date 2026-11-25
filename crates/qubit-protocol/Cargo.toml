@@ -2,18 +2,11 @@
 name = "qubit-protocol"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
-repository.workspace = true
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-specta = { workspace = true }
-specta-typescript = { workspace = true }
-chrono = { workspace = true }
-uuid = { workspace = true }
-
-[[bin]]
-name = "gen_bindings"
-path = "src/bin/gen_bindings.rs"
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+ts-rs.workspace = true
