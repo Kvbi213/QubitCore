@@ -26,6 +26,69 @@ impl Default for SandboxConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SandboxBackend {
+    Native,
+    Docker {
+        image: String,
+        memory_limit: String,
+        network: bool,
+    },
+    Podman {
+        image: String,
+        memory_limit: String,
+        network: bool,
+    },
+}
+
+impl Default for SandboxBackend {
+    fn default() -> Self {
+        Self::Native
+    }
+}
+
+pub fn detect_available_backend() -> SandboxBackend {
+    if which_binary("docker") {
+        SandboxBackend::Docker {
+            image: "alpine:latest".to_string(),
+            memory_limit: "128m".to_string(),
+            network: false,
+        }
+    } else if which_binary("podman") {
+        SandboxBackend::Podman {
+            image: "alpine:latest".to_string(),
+            memory_limit: "128m".to_string(),
+            network: false,
+        }
+    } else {
+        SandboxBackend::Native
+    }
+}
+
+pub fn which_binary(bin: &str) -> bool {
+    if let Ok(path_var) = std::env::var("PATH") {
+        #[cfg(unix)]
+        let separator = ':';
+        #[cfg(windows)]
+        let separator = ';';
+
+        for dir in path_var.split(separator) {
+            let p = Path::new(dir).join(bin);
+            if p.is_file() {
+                return true;
+            }
+            #[cfg(windows)]
+            {
+                let p_exe = Path::new(dir).join(format!("{}.exe", bin));
+                if p_exe.is_file() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 #[derive(Debug, Clone)]
 pub struct SandboxOutput {
     pub exit_code: i32,
@@ -143,5 +206,65 @@ impl SandboxRunner {
             timed_out,
             truncated: out_trunc || err_trunc,
         })
+    }
+
+    pub async fn run_with_backend(
+        backend: &SandboxBackend,
+        cmd: &str,
+        args: &[&str],
+        cwd: &Path,
+        cfg: &SandboxConfig,
+    ) -> Result<SandboxOutput, SandboxError> {
+        match backend {
+            SandboxBackend::Native => Self::run(cmd, args, cwd, cfg).await,
+            SandboxBackend::Docker { image, memory_limit, network } => {
+                let mut docker_args = vec!["run", "--rm", "-i"];
+                if !network {
+                    docker_args.push("--network");
+                    docker_args.push("none");
+                }
+                docker_args.push("-m");
+                docker_args.push(memory_limit.as_str());
+
+                let cwd_str = cwd.to_string_lossy().to_string();
+                let vol_spec = format!("{}:/workspace", cwd_str);
+                docker_args.push("-v");
+                docker_args.push(&vol_spec);
+                docker_args.push("-w");
+                docker_args.push("/workspace");
+
+                docker_args.push(image.as_str());
+                docker_args.push(cmd);
+                for a in args {
+                    docker_args.push(a);
+                }
+
+                Self::run("docker", &docker_args, cwd, cfg).await
+            }
+            SandboxBackend::Podman { image, memory_limit, network } => {
+                let mut podman_args = vec!["run", "--rm", "-i"];
+                if !network {
+                    podman_args.push("--network");
+                    podman_args.push("none");
+                }
+                podman_args.push("-m");
+                podman_args.push(memory_limit.as_str());
+
+                let cwd_str = cwd.to_string_lossy().to_string();
+                let vol_spec = format!("{}:/workspace", cwd_str);
+                podman_args.push("-v");
+                podman_args.push(&vol_spec);
+                podman_args.push("-w");
+                podman_args.push("/workspace");
+
+                podman_args.push(image.as_str());
+                podman_args.push(cmd);
+                for a in args {
+                    podman_args.push(a);
+                }
+
+                Self::run("podman", &podman_args, cwd, cfg).await
+            }
+        }
     }
 }

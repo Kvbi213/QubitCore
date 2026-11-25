@@ -1,3 +1,6 @@
+pub mod config;
+pub use config::QubitConfig;
+
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -172,11 +175,36 @@ async fn handle_ws(mut socket: WebSocket, state: AppState) {
 }
 
 pub fn build_provider_from_env() -> Arc<FallbackProviderChain> {
+    let cfg = QubitConfig::load();
     let mut providers: Vec<Arc<dyn ModelProvider>> = Vec::new();
-    if let (Ok(url), Ok(key)) = (std::env::var("QUBIT_API_URL"), std::env::var("QUBIT_API_KEY")) {
-        let model = std::env::var("QUBIT_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
-        providers.push(Arc::new(HttpApiProvider::new(url, key, model)));
+
+    if let (Some(url), Some(key)) = (cfg.api_url.as_ref(), cfg.api_key.as_ref()) {
+        let model = cfg.model.clone().unwrap_or_else(|| "gpt-4o-mini".to_string());
+        providers.push(Arc::new(HttpApiProvider::new(url.clone(), key.clone(), model)));
+    } else if let Ok(openai_key) = std::env::var("OPENAI_API_KEY") {
+        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        providers.push(Arc::new(HttpApiProvider::new(
+            "https://api.openai.com/v1/chat/completions".to_string(),
+            openai_key,
+            model,
+        )));
+    } else if let Ok(gemini_key) = std::env::var("GEMINI_API_KEY") {
+        let model = std::env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-1.5-flash".to_string());
+        providers.push(Arc::new(HttpApiProvider::new(
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions".to_string(),
+            gemini_key,
+            model,
+        )));
+    } else if let Ok(ollama_host) = std::env::var("OLLAMA_HOST") {
+        let endpoint = format!("{}/v1/chat/completions", ollama_host.trim_end_matches('/'));
+        let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3.2".to_string());
+        providers.push(Arc::new(HttpApiProvider::new(
+            endpoint,
+            "ollama".to_string(),
+            model,
+        )));
     }
+
     providers.push(Arc::new(OfflineEchoProvider));
     Arc::new(FallbackProviderChain::new(providers))
 }

@@ -1,5 +1,5 @@
 use qubit_agents::AgentEngine;
-use qubit_core::{build_provider_from_env, build_router, AppState};
+use qubit_core::{build_provider_from_env, build_router, AppState, QubitConfig};
 use qubit_mcp::{ElicitationGate, RootGuard};
 use qubit_storage::StorageHandle;
 use std::path::PathBuf;
@@ -17,9 +17,13 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let db_path = std::env::var("QUBIT_DB_PATH")
+    let cfg = QubitConfig::load();
+
+    let db_path = cfg
+        .storage_path
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("./data/qubit_data.db"));
+        .or_else(|| std::env::var("QUBIT_DB_PATH").ok().map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("./data/qubit_data.db"));
 
     let storage = StorageHandle::open(&db_path)?;
     let provider = build_provider_from_env();
@@ -37,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
         events,
     };
 
-    let addr = std::env::var("QUBIT_BIND").unwrap_or_else(|_| "127.0.0.1:4000".to_string());
+    let addr = format!("{}:{}", cfg.host, cfg.port);
     let listener = TcpListener::bind(&addr).await?;
     info!("QubitCore daemon listening on http://{addr}");
 

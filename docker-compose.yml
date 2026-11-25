@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  qubit-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qubit/qubit-core:latest
+    container_name: qubit-core
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - QUBIT_PORT=4000
+      - QUBIT_HOST=0.0.0.0
+      - QUBIT_STORAGE_PATH=/var/lib/qubit/qubit_data.db
+      - RUST_LOG=info
+      - QUBIT_RAM_LIMIT_MB=60
+      - QUBIT_ZERO_TRUST_MCP=true
+    volumes:
+      - qubit-data:/var/lib/qubit
+      - qubit-config:/etc/qubit
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 64M
+        reservations:
+          memory: 32M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  qubit-data:
+    driver: local
+  qubit-config:
+    driver: local
